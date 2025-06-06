@@ -164,6 +164,9 @@ class SettingsConfig:
     RETURN_FAILURE_MODES = "return_failure_modes"
 
     def __post_init__(self):
+        if self._config is None:
+            return None
+        
         self._unpack_failure_criteria()
         self._unpack_layering_strategy()
         self._unpack_strain_computers()

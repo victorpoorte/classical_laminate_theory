@@ -45,16 +45,18 @@ def _load_and_merge_include_entries(base_file_path: str, data: dict, entry: str)
 
     return data
 
-def _merge_included_data(data: dict, include_data: dict):
+def _merge_included_data(data: dict, include_data: dict) -> dict:
     for key, value in include_data.items():
-        if isinstance(value, dict):
-            existing = data.get(key, {})
-            if isinstance(existing, dict):
-                value.update(existing) 
-            data[key] = value 
+        if (
+            key in data 
+            and isinstance(data[key], dict) 
+            and isinstance(value, dict)
+        ):
+            # Recursively merge nested dicts
+            data[key] = _merge_included_data(data[key], value)
         else:
+            # If key not in data or not both dicts, overwrite or set default
             data.setdefault(key, value)
-
     return data
 
 def _load_include_data(base_file_path, include_path):

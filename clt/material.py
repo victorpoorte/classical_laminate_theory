@@ -206,8 +206,15 @@ class Lamina:
 
     def get_failure_stress(self, temperature: float) -> LaminaFailureStresses:
         self.failure_stresses: dict
-        value = self.failure_stresses[(temperature)]
-        return value
+
+        if temperature in self.failure_stresses:
+            return self.failure_stresses[temperature]
+        
+        str_key = str(temperature)
+        if str_key in self.failure_stresses:
+            return self.failure_stresses[str_key]
+        
+        raise KeyError(f"Temperature {temperature} not found in failure_stresses.")
 
     @classmethod
     def T300_934(cls):
@@ -219,6 +226,8 @@ class Lamina:
             G12=3.88e9,
             v23=0.495,
             G23=3.88e9,
+            p12_negative = 0.3,
+            p12_positive = 0.3,
             alpha1=0.006e-6,
             alpha2=30.04e-6,
             density=1535,
@@ -242,6 +251,8 @@ class Lamina:
             G12=7.17e9,
             v23=0.28,
             G23=7.17e9,
+            p12_negative = 0.3,
+            p12_positive = 0.3,
             alpha1=0.02e-6,
             alpha2=22.5e-6,
             density=1600,
