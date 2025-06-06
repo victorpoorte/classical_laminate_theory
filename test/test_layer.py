@@ -12,7 +12,7 @@ import numpy as np
 from hypothesis import example, given
 
 from analytical_vessel_analysis.clt.clt.laminate_layer import LaminateLayer
-from clt.orientation import Orientation
+from classical_laminate_theory.orientation import Orientation
 
 
 class MyTestLayer(LaminateLayer):

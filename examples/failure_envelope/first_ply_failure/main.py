@@ -1,8 +1,8 @@
-from clt.clt.failure_analysis.plot_failure_envelope import plot_fpf_failure_envelope
-from clt.clt.failure_analysis.failure_envelope import FailureEnvelopeGenerator
-from clt.clt.config.config import CLTConfig
-from clt.clt.config.yaml_loader import load_config
-from clt.clt.layer import Layer
+from classical_laminate_theory.clt.failure_analysis.plot_failure_envelope import plot_fpf_failure_envelope
+from classical_laminate_theory.clt.failure_analysis.failure_envelope import FailureEnvelopeGenerator
+from classical_laminate_theory.clt.config.config import CLTConfig
+from classical_laminate_theory.clt.config.yaml_loader import load_config
+from classical_laminate_theory.clt.layer import Layer
 
 
 def main(config: dict):

@@ -6,7 +6,7 @@ import hypothesis.strategies as st
 import numpy as np
 from hypothesis import example, given
 
-from clt.orientation import Orientation
+from classical_laminate_theory.orientation import Orientation
 
 
 class MyOnlineExampleStrain:

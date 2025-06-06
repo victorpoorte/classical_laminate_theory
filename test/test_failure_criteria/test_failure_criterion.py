@@ -10,7 +10,7 @@ import hypothesis.strategies as st
 import numpy as np
 from hypothesis import given
 
-from clt.clt.failure_criteria.failure_criterion_protocol import (
+from classical_laminate_theory.clt.failure_criteria.failure_criterion_protocol import (
     Failure,
     FailureCriterion,
     StressState,

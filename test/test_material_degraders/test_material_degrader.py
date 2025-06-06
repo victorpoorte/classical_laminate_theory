@@ -5,7 +5,7 @@ from test.test_strategies import my_list_of_numbers_strategy
 
 import hypothesis.strategies as st
 
-from clt.material import FailureStresses, Lamina, LaminaFailureStresses
+from classical_laminate_theory.material import FailureStresses, Lamina, LaminaFailureStresses
 
 
 @st.composite

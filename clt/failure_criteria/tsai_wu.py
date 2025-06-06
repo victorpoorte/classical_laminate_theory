@@ -3,8 +3,8 @@ from typing import Protocol
 
 import numpy as np
 
-from clt.clt.failure_criteria.puck import FailureIndexResult
-from clt.clt.layer import layer_to_laminate_layer
+from classical_laminate_theory.clt.failure_criteria.puck import FailureIndexResult
+from classical_laminate_theory.clt.layer import layer_to_laminate_layer
 
 from .failure_criterion_protocol import (
     FailureCriterion,

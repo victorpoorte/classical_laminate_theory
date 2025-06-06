@@ -5,7 +5,7 @@ import hypothesis.strategies as st
 import numpy as np
 from hypothesis import given
 
-from clt.loading import LaminateLoad
+from classical_laminate_theory.loading import LaminateLoad
 
 LOAD_KEYS = {"Nx", "Ny", "Nxy", "Mx", "My", "Mxy"}
 

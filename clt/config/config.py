@@ -2,12 +2,12 @@ import numpy as np
 
 
 from dataclasses import dataclass
-from clt import Layer, Lamina, LaminaFailureStresses
-from clt.clt.failure_analysis.failure_strategy import FailureStrategyInitialiserFactory, FailureTypes
-from clt.clt.failure_criteria.factory import FailureCriteriaFactory
-from clt.clt.material import MaterialFactory
-from clt.clt.material_degraders.factory import MaterialDegraderFactory
-from clt.clt.failure_analysis.failure_analyser import FailureAnalyser
+from classical_laminate_theory import Layer, Lamina, LaminaFailureStresses
+from classical_laminate_theory.clt.failure_analysis.failure_strategy import FailureStrategyInitialiserFactory, FailureTypes
+from classical_laminate_theory.clt.failure_criteria.factory import FailureCriteriaFactory
+from classical_laminate_theory.clt.material import MaterialFactory
+from classical_laminate_theory.clt.material_degraders.factory import MaterialDegraderFactory
+from classical_laminate_theory.clt.failure_analysis.failure_analyser import FailureAnalyser
 from common.layering_strategies import LayeringStrategyFactory
 from strain_computers.computer_factory import StrainComputerFactory
 

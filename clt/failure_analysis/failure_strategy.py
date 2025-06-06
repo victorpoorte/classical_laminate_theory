@@ -11,7 +11,7 @@ from typing import Protocol
 
 from pyparsing import Literal
 
-from clt.clt.failure_criteria.puck import FailureIndexResult
+from classical_laminate_theory.clt.failure_criteria.puck import FailureIndexResult
 from ..layer import Layer
 
 

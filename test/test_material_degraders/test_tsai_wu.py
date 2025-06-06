@@ -7,10 +7,10 @@ from test.test_material_degraders.test_material_degrader import (
 
 from hypothesis import example, given
 
-from clt.clt.failure_criteria.failure_criterion_protocol import Failure
-from clt.material import Lamina, LaminaFailureStresses
-from clt.clt.material_degraders.degrader_protocol import DEGRADATION_FACTOR
-from clt.material_degraders.tsai_wu import MaterialDegrader
+from classical_laminate_theory.clt.failure_criteria.failure_criterion_protocol import Failure
+from classical_laminate_theory.material import Lamina, LaminaFailureStresses
+from classical_laminate_theory.clt.material_degraders.degrader_protocol import DEGRADATION_FACTOR
+from classical_laminate_theory.material_degraders.tsai_wu import MaterialDegrader
 
 
 class TestMaterialDegrader(unittest.TestCase):

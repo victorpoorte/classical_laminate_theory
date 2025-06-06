@@ -11,15 +11,15 @@ from test.test_strategies import my_positive_number_strategy
 import numpy as np
 from hypothesis import example, given
 
-from clt.clt.failure_criteria.failure_criterion_protocol import (
+from classical_laminate_theory.clt.failure_criteria.failure_criterion_protocol import (
     FAILURE_THRESHOLD,
     ROUNDING_DIGITS,
     Failure,
     StressState,
 )
-from clt.failure_criteria.tsai_wu import FailureCriterion
+from classical_laminate_theory.failure_criteria.tsai_wu import FailureCriterion
 from analytical_vessel_analysis.clt.clt.laminate_layer import LaminateLayer
-from clt.material import FailureStresses, LaminaFailureStresses
+from classical_laminate_theory.material import FailureStresses, LaminaFailureStresses
 
 
 class MyOnlineExampleStressState(StressState):

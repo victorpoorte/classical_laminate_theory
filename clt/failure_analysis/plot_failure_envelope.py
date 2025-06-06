@@ -1,5 +1,5 @@
 import numpy as np
-from clt.clt.failure_analysis.failure_envelope import FailureEnvelope
+from classical_laminate_theory.clt.failure_analysis.failure_envelope import FailureEnvelope
 from plotting import SingleFigure, SingleLine, Axis
 
 

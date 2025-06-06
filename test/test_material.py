@@ -1,6 +1,6 @@
 import unittest
-from clt.laminate import Laminate
-from clt.orientation import Orientation
+from classical_laminate_theory.laminate import Laminate
+from classical_laminate_theory.orientation import Orientation
 from analytical_vessel_analysis.clt.clt.laminate_layer import LaminateLayer
 from test.test_strategies import (
     my_list_of_numbers_strategy,
@@ -11,7 +11,7 @@ import hypothesis.strategies as st
 import numpy as np
 from hypothesis import example, given
 
-from clt.material import (
+from classical_laminate_theory.material import (
     FailureStresses,
     Lamina,
     LaminaFailureStresses,

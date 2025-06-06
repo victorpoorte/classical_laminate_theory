@@ -13,10 +13,10 @@ from test_material import (
     lamina_failure_stresses_strategy,
 )
 
-from clt.clt.failure_criteria.failure_criterion_protocol import StressState
-from clt.clt.failure_criteria.hashin import FailureCriterion
+from classical_laminate_theory.clt.failure_criteria.failure_criterion_protocol import StressState
+from classical_laminate_theory.clt.failure_criteria.hashin import FailureCriterion
 from analytical_vessel_analysis.clt.clt.laminate_layer import LaminateLayer
-from clt.material import FailureStresses, LaminaFailureStresses
+from classical_laminate_theory.material import FailureStresses, LaminaFailureStresses
 
 
 class TestHashinFailureCriterion(unittest.TestCase):
