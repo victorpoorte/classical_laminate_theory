@@ -48,6 +48,25 @@ class ClassicalLaminateTheoryComputer(StrainComputer):
         laminate = self.laminate_factory.create_laminate(layers)
         global_strain = laminate.compute_global_strain(load)
         return laminate.compute_total_strains(global_strain)
+    
+
+class StrainComputerFactory():
+    _strain_computers = {
+        "classical_laminate": ClassicalLaminateTheoryComputer()
+    }
+
+    @property
+    def available(self):
+        return ", ".join(self._strain_computers.keys())
+
+    def create_strain_computer(self, computer_type: str) -> StrainComputer:
+        computer = self._strain_computers.get(computer_type)
+        if computer is None:
+            raise ValueError(
+                "\nStrain computer not implemented.\n"
+                + f"Available computers are: {self.available}"
+            )
+        return computer
 
 
 

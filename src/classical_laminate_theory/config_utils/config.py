@@ -1,22 +1,15 @@
 import numpy as np
-
-
 from dataclasses import dataclass
-from classical_laminate_theory import Layer, Lamina, LaminaFailureStresses
-from classical_laminate_theory.clt.failure_analysis.failure_strategy import FailureStrategyInitialiserFactory, FailureTypes
-from classical_laminate_theory.clt.failure_criteria.factory import FailureCriteriaFactory
-from classical_laminate_theory.clt.material import MaterialFactory
-from classical_laminate_theory.clt.material_degraders.factory import MaterialDegraderFactory
-from classical_laminate_theory.clt.failure_analysis.failure_analyser import FailureAnalyser
-from common.layering_strategies import LayeringStrategyFactory
-from strain_computers.computer_factory import StrainComputerFactory
 
-FAILURE_CRITERION_FACTORY = FailureCriteriaFactory()
-MATERIAL_FACTORY = MaterialFactory()
-LAYERING_FACTORY = LayeringStrategyFactory()
-COMPUTER_FACTORY = StrainComputerFactory()
-MATERIAL_DEGRADER_FACTORY = MaterialDegraderFactory()
-FAILURE_STRATEGY_FACTORY = FailureStrategyInitialiserFactory()
+from ..material import Lamina, LaminaFailureStresses
+from ..failure_analysis.failure_strategy import FailureStrategyInitialiserFactory, FailureTypes
+from ..failure_criteria.factory import FailureCriteriaFactory
+from ..material import MaterialFactory
+from ..material_degraders.factory import MaterialDegraderFactory
+from ..failure_analysis.failure_analyser import FailureAnalyser
+from ..strain_computers import StrainComputerFactory
+from ..layering_strategies import LayeringStrategyFactory
+
 
 
 def _min_max_step_dict_to_array(values: dict) -> np.ndarray:
@@ -67,7 +60,7 @@ class MaterialConfig:
             return self.material
 
         if isinstance(self._config, str):
-            self.material = MATERIAL_FACTORY.create_material(self._config)
+            self.material = MaterialFactory().create_material(self._config)
             return self.material
 
         self._config: dict
@@ -156,6 +149,13 @@ class LoadingConfig:
 class SettingsConfig:
     _config: dict
 
+    failure_criterion_strategy: FailureCriteriaFactory = FailureCriteriaFactory()
+    material_factory: MaterialFactory = MaterialFactory()
+    layering_factory: LayeringStrategyFactory = LayeringStrategyFactory()
+    strain_computer_factory: StrainComputerFactory = StrainComputerFactory()
+    material_degrader_factory: MaterialDegraderFactory = MaterialDegraderFactory()
+    failure_strategy_initialiser_factory: FailureStrategyInitialiserFactory = FailureStrategyInitialiserFactory()
+
     FAILURE_CRITERION = "failure_criteria"
     LAYERING_STRATEGY = "layering_strategy"
     STRAIN_COMPUTER = "strain_computers"
@@ -188,7 +188,7 @@ class SettingsConfig:
             criteria = [criteria]
 
         self.failure_criteria = [
-            FAILURE_CRITERION_FACTORY.get_failure_criterion(criterion)
+            self.failure_criterion_strategy.get_failure_criterion(criterion)
             for criterion in criteria
         ]
         
@@ -201,7 +201,7 @@ class SettingsConfig:
             self.layering_strategy = None
             return self.layering_strategy
         
-        self.layering_strategy = LAYERING_FACTORY.get_layering_strategy(strategy)
+        self.layering_strategy = self.layering_factory.get_layering_strategy(strategy)
 
         return self.layering_strategy
     
@@ -216,7 +216,7 @@ class SettingsConfig:
             computers = [computers]
 
         self.strain_computers = [
-            COMPUTER_FACTORY.create_strain_computer(computer)
+            self.strain_computer_factory.create_strain_computer(computer)
             for computer in computers
         ]
 
@@ -235,7 +235,7 @@ class SettingsConfig:
         ]
 
         self.failure_strategies = [
-            FAILURE_STRATEGY_FACTORY.get_strategy(strat)(*arg)
+            self.failure_strategy_initialiser_factory.get_strategy(strat)(*arg)
             for strat, arg in zip(strategies, args)
         ]
 
@@ -248,7 +248,7 @@ class SettingsConfig:
             self.material_degrader = None
             return self.material_degrader
         
-        self.material_degrader = MATERIAL_DEGRADER_FACTORY.get_degrader(degrader)
+        self.material_degrader = self.material_degrader_factory.get_degrader(degrader)
 
         return self.material_degrader
 
@@ -272,6 +272,5 @@ class SettingsConfig:
             labels.append(failure_strategy)
 
         return " - ".join(labels)
-
 
 # End

@@ -12,7 +12,11 @@ class Lamina(Protocol):
     def create_inter_lamina_material(self) -> Lamina:
         ...
 
-class LaminateLayerStrategy:
+class LayeringStrategy(Protocol):
+     def create_complete_layers(self, rotation: float | list[float], layer_thickness: float, material: Lamina, degrees: bool):
+        ...
+
+class LaminateLayerStrategy(LayeringStrategy):
     def create_layers(self, layers: list[Layer]) -> list[Layer]:
         return layers
     
@@ -81,6 +85,25 @@ class LaminateInterLaminarStrategy(LaminateLayerStrategy):
         ]
         orientations.pop()
         return orientations
+    
+
+class LayeringStrategyFactory():
+    _strategies = {
+        "Laminated": LaminateLayerStrategy(),
+    }
+
+    @property
+    def available(self):
+        return " ,".join(self._strategies.keys())
+
+    def get_layering_strategy(self, strategy: str) -> LayeringStrategy:
+        strat = self._strategies.get(strategy)
+        if strat is None:
+            raise ValueError(
+                f"\n{strategy} is an invalid layering strategy...\n"
+                + f"Available strategies are: {self.available}"
+            )
+        return strat
 
 
 def main():
