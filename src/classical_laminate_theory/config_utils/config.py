@@ -27,10 +27,19 @@ class CLTConfig:
     SETTINGS = "settings"
 
     def __post_init__(self):
-        self.material = MaterialConfig(self._config.get(self.MATERIAL))
-        self.laminate = LaminateConfig(self._config.get(self.LAMINATE))
+        self._unpack_material()
+        self._unpack_laminate()
         self._unpack_loading()
+        self._unpack_settings()
+
+    def _unpack_settings(self):
         self.settings = SettingsConfig(self._config.get(self.SETTINGS))
+
+    def _unpack_laminate(self):
+        self.laminate = LaminateConfig(self._config.get(self.LAMINATE))
+
+    def _unpack_material(self):
+        self.material = MaterialConfig(self._config.get(self.MATERIAL))
 
     def _unpack_loading(self):
         self.loading = LoadingConfig(self._config.get(self.LOADING))
