@@ -1,20 +1,7 @@
 from dataclasses import dataclass
 import numpy as np
 
-from .failure_criterion_protocol import FailureCriterion, FailureMode, Layer, classify_failure_mode
-
-@dataclass
-class FailureIndexResult:
-    longitudinal: float
-    transverse: float
-    failure_angle: float | None = None
-    long_tensile: bool | None = None
-    trav_tensile: bool | None = None
-
-    @property
-    def critical(self):
-        return max([self.longitudinal, self.transverse])
-
+from .failure_criterion_protocol import FailureCriterion, FailureMode, Layer, classify_failure_mode, FailureIndexResult
 
 class FailureCriterion(FailureCriterion):
     name = "Puck"

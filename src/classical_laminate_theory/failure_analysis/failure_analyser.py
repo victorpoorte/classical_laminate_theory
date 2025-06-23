@@ -2,9 +2,7 @@ import numpy as np
 
 from typing import Protocol
 
-from classical_laminate_theory.clt.failure_criteria.puck import FailureIndexResult
-
-
+from ..failure_criteria.failure_criterion_protocol import FailureIndexResult
 from .failure_strategy import FailureResult, FailureStrategy
 
 

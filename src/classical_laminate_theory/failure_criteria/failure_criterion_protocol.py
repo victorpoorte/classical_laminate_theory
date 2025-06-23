@@ -55,6 +55,21 @@ class FailureType(Enum):
     @classmethod
     def short_labels(cls):
         return ["".join([name[0].upper() for name in mode.split("_")]) for mode in cls.names()]
+    
+
+@dataclass
+class FailureIndexResult:
+    longitudinal: float
+    transverse: float
+    failure_angle: float | None = None
+    long_tensile: bool | None = None
+    trav_tensile: bool | None = None
+
+    @property
+    def critical(self):
+        return max([self.longitudinal, self.transverse])
+
+
 
 
 @dataclass

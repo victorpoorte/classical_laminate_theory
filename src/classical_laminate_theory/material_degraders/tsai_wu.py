@@ -1,4 +1,4 @@
-from classical_laminate_theory.clt.failure_criteria.puck import FailureIndexResult
+from ..failure_criteria.failure_criterion_protocol import FailureIndexResult
 from ..material import Lamina
 from .degrader_protocol import DEGRADED_POISSON, MaterialDegrader, DEGRADATION_FACTOR
 

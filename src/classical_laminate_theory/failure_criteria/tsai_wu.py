@@ -1,11 +1,8 @@
 import math
-from typing import Protocol
 
 import numpy as np
 
-from classical_laminate_theory.clt.failure_criteria.puck import FailureIndexResult
-from classical_laminate_theory.clt.layer import layer_to_laminate_layer
-
+from .puck import FailureIndexResult
 from .failure_criterion_protocol import (
     FailureCriterion,
     FailureMode,
