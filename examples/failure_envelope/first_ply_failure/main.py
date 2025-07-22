@@ -8,21 +8,22 @@ def main(config: dict):
 
     clt_config = CLTConfig(config)
 
-    layers = clt_config.create_layers()
-
     labels = [criterion.name for criterion in clt_config.settings.failure_criteria]
 
-    # Create and plot envelope
-    for load in clt_config.loading.loads:
-        envelopes = [
-            FailureEnvelopeGenerator(
-                analyser, load.x_axis, load.y_axis, angle_resolution=load.angle_resolution
-            ).compute_envelope(layers)
-            for analyser in clt_config.settings.analysers
-        ]
-        fig = plot_fpf_failure_envelope(envelopes, labels, x_label=load.x_axis, y_label=load.y_axis)
 
-        fig.show()
+    for layers in clt_config.create_layers():
+        print(f"Laminate: {[lay.rotation for lay in layers]}")
+        # Create and plot envelope
+        for load in clt_config.loading.loads:
+            envelopes = [
+                FailureEnvelopeGenerator(
+                    analyser, load.x_axis, load.y_axis, angle_resolution=load.angle_resolution
+                ).compute_envelope(layers)
+                for analyser in clt_config.settings.analysers
+            ]
+            fig = plot_fpf_failure_envelope(envelopes, labels, x_label=load.x_axis, y_label=load.y_axis)
+
+            fig.show()
     
 
 if __name__ == "__main__":

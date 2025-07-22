@@ -1,31 +1,29 @@
 settings:
-  failure_criteria:
-    # - "Tsai-Wu"
-    - Puck
-  layering_strategy: "Laminated"
-  strain_computers:
-    - "classical_laminate"
-  failure_strategies:
-    # - "first_ply_failure"
-    - "last_ply_failure"
-  material_degrader: "Tsai-Wu"
-  return_failure_modes: True
+  cases:
+    - failure_criteria: Puck
+      layering_strategy: "Laminated"
+      strain_computers: "classical_laminate"
+      failure_strategies: "last_ply_failure"
+      material_degrader: "Tsai-Wu"
+      layering_strategy: "Laminated"
   
 loading:
   - name: "Nx-Ny Envelope"
     x_axis: "Nx"
     y_axis: "Ny"
-    angle_resolution: 1.0
-  - name: "Nx-Nxy Envelope"
-    x_axis: "Nx"
-    y_axis: "Nxy"
-    angle_resolution: 1.0
+    angle_resolution: 10.0
+
+  # - name: "Nx-Nxy Envelope"
+  #   x_axis: "Nx"
+  #   y_axis: "Nxy"
+  #   angle_resolution: 1.0
 
 laminate:
   angles: [0, 0, 45, -45, 90, 90]
   symmetric: 2  # Times symmetry of laminate
   degrees: True
   layer_thickness: 0.125e-03
+
 material:
   name: "MR60H Uni Carbon 36%RC"
   E1: 168.0e+09             # Pa

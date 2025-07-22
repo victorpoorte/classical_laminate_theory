@@ -1,3 +1,5 @@
+from abc import abstractmethod
+from typing import Union
 import numpy as np
 from dataclasses import dataclass
 
@@ -16,6 +18,36 @@ def _min_max_step_dict_to_array(values: dict) -> np.ndarray:
     return np.arange(
         values["min"], values["max"] + values["step"], values["step"]
     )
+
+
+
+@dataclass
+class Sweepable:
+    _config: Union[dict, list, float]
+
+    def __post_init__(self):
+        self._config = self._config if isinstance(self._config, list) else [self._config]
+
+    def is_sweep(self):
+        return len(self._config) > 1
+    
+    @property
+    def values(self):
+        return self._config
+
+    @property
+    def default(self):
+        if self.is_sweep():
+            raise ValueError("Sweep defined, single value not accessible")
+        return self.values[0]
+
+    @property
+    def all(self):
+        return self.values
+
+
+
+
 
 @dataclass
 class CLTConfig:
@@ -45,37 +77,46 @@ class CLTConfig:
         self.loading = LoadingConfig(self._config.get(self.LOADING))
 
     def create_layers(self):
-        return self.settings.layering_strategy.create_complete_layers(
-            self.laminate.angles,
-            self.laminate.layer_thickness,
-            self.material.material,
-            self.laminate.degrees
-        )
+        return [
+            self.settings.layering_strategy.create_complete_layers(
+                laminate_stack.angles,
+                laminate_stack.thickness,
+                self.material.default,
+                laminate_stack.degrees
+            )
+            for laminate_stack in self.laminate.all
+        ]
 
 
 @dataclass
-class MaterialConfig:
+class MaterialConfig(Sweepable):
     _config: dict
 
     FAILURE = "failure"
     FAILURE_STRESSES = "failure_stresses"
 
     def __post_init__(self):
-        self._extract_material()
+        super().__post_init__()
+        
+        self._materials = [
+            self._extract_material(material) for material in self._config
+        ]
 
-    def _extract_material(self):
-        if self._config is None:
-            self.material = None
-            return self.material
+    @property
+    def values(self):
+        return self._materials
 
-        if isinstance(self._config, str):
-            self.material = MaterialFactory().create_material(self._config)
-            return self.material
+    def _extract_material(self, material: Union[None, str, dict]):
+        if material is None:
+            return None
 
-        self._config: dict
+        if isinstance(material, str):
+            return MaterialFactory().create_material(material)
+
+        material: dict
         failure_stresses = None
-        if self.FAILURE in self._config:
-            failure_loads = self._config.pop(self.FAILURE)
+        if self.FAILURE in material:
+            failure_loads = material.pop(self.FAILURE)
             if isinstance(failure_loads, dict):
                 failure_stresses = LaminaFailureStresses(**failure_loads)
             elif isinstance(failure_loads, list):
@@ -83,14 +124,18 @@ class MaterialConfig:
                     loads["temperature"]: LaminaFailureStresses(**loads[self.FAILURE])
                     for loads in failure_loads
                 }
-        self.material = Lamina(**(self._config | {self.FAILURE_STRESSES: failure_stresses}))
-
-        return self.material
+        return Lamina(**(material | {self.FAILURE_STRESSES: failure_stresses}))
 
 
 @dataclass
-class LaminateConfig:
-    _config: dict
+class LaminateStack:
+    angles: list[float]
+    degrees: bool
+    thickness: float
+
+@dataclass
+class LaminateConfig(Sweepable):
+    _config: Union[dict, list]
 
     ANGLES: str = "angles"
     SYMMETRIC: str = "symmetric"
@@ -98,34 +143,38 @@ class LaminateConfig:
     LAYER_THICKNESS: str = "layer_thickness"
 
     def __post_init__(self):
-        self._extract_angles()
-        self.symmetric = self._config.get(self.SYMMETRIC)
-        self.degrees = self._config.get(self.DEGREES)
-        self.layer_thickness = self._config.get(self.LAYER_THICKNESS)
+        super().__post_init__()
+        self._laminates = self._build_laminates()
 
-        self._create_laminate_symmetries()
+    @property
+    def values(self) -> list[LaminateStack]:
+        return self._laminates
 
-    def _extract_angles(self):
-        self.angles = self._config.get(self.ANGLES)
+    def _build_laminates(self) -> list[LaminateStack]:
+        # If _config is a list of full laminate dicts
+        if isinstance(self._config, list) and all(isinstance(c, dict) for c in self._config):
+            return [self._build_single_laminate(cfg) for cfg in self._config]
 
-        if self.angles is None:
-            return self.angles
+        # Else assume it's a single laminate definition dict
+        return [self._build_single_laminate(self._config)]
 
-        if isinstance(self.angles, list):
-            return self.angles
-        
-        if isinstance(self.angles, dict):
-            self.angles = _min_max_step_dict_to_array(self.angles)
+    def _build_single_laminate(self, cfg: dict) -> LaminateStack:
+        angles = cfg.get(self.ANGLES)
 
-            return self.angles
-        
-        raise ValueError(f"Unsupported laminate angles: {self.angles}")
+        if angles is None:
+            raise ValueError("Missing 'angles' in laminate config.")
 
-    def _create_laminate_symmetries(self):
-        if self.symmetric is not None:
-            for _ in range(self.symmetric):
-                self.angles += self.angles[::-1]
+        if isinstance(angles, dict):
+            angles = _min_max_step_dict_to_array(angles)
 
+        symmetric = cfg.get(self.SYMMETRIC, 0)
+        degrees = cfg.get(self.DEGREES, True)
+        thickness = cfg.get(self.LAYER_THICKNESS, None)
+
+        if symmetric:
+            angles = angles + angles[::-1] * symmetric
+
+        return LaminateStack(angles, degrees, thickness)
 
 @dataclass
 class FailureEnvelopeConfig:
@@ -135,13 +184,10 @@ class FailureEnvelopeConfig:
     angle_resolution: float
 
 
-@dataclass
-class LoadingConfig:
-    _config: list[dict]
+class LoadingConfig(Sweepable):
 
     def __post_init__(self):
-        if self._config is None:
-            return None
+        super().__post_init__()
         
         self._unpack_loads()
 
@@ -171,20 +217,23 @@ class SettingsConfig:
     FAILURE_STRATEGIES = "failure_strategies"
     MATERIAL_DEGRADER = "material_degrader"
     RETURN_FAILURE_MODES = "return_failure_modes"
+    CASES = "cases"
 
     def __post_init__(self):
         if self._config is None:
             return None
+        
+        if self.CASES in self._config:
+            self._create_explicit_analysers(self._config[self.CASES])
+
+            return
         
         self._unpack_failure_criteria()
         self._unpack_layering_strategy()
         self._unpack_strain_computers()
         self._unpack_material_degrader()
         self._unpack_failure_strategies()
-
-        self.return_failure_modes = self._config.get(self.RETURN_FAILURE_MODES)
-
-        self._create_analysers()
+        self._create_cartesian_analysers()
 
     def _unpack_failure_criteria(self):
         criteria = self._config.get(self.FAILURE_CRITERION)
@@ -261,7 +310,7 @@ class SettingsConfig:
 
         return self.material_degrader
 
-    def _create_analysers(self):
+    def _create_cartesian_analysers(self):
         self.analysers = [
             FailureAnalyser(computer, criterion, failure_strategy)
             for criterion in self.failure_criteria
@@ -281,5 +330,27 @@ class SettingsConfig:
             labels.append(failure_strategy)
 
         return " - ".join(labels)
+
+    def _create_explicit_analysers(self, case_dicts: list[dict]):
+        self.analysers = []
+
+        for case in case_dicts:
+            criterion = self.failure_criterion_strategy.get_failure_criterion(case[self.FAILURE_CRITERION])
+            computer = self.strain_computer_factory.create_strain_computer(case[self.STRAIN_COMPUTER])
+            strategy_name = case[self.FAILURE_STRATEGIES]
+            self.layering_strategy = self.layering_factory.get_layering_strategy(case[self.LAYERING_STRATEGY])
+
+            degrader = None
+            if self.MATERIAL_DEGRADER in case:
+                degrader = self.material_degrader_factory.get_degrader(case[self.MATERIAL_DEGRADER])
+
+            if strategy_name == FailureTypes.FPF.value:
+                strategy = self.failure_strategy_initialiser_factory.get_strategy(strategy_name)()
+            else:
+                strategy = self.failure_strategy_initialiser_factory.get_strategy(strategy_name)(degrader)
+
+            self.analysers.append(
+                FailureAnalyser(computer, criterion, strategy)
+            )
 
 # End

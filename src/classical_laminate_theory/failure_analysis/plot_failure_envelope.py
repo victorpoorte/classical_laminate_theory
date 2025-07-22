@@ -1,6 +1,6 @@
 import numpy as np
-from classical_laminate_theory.clt.failure_analysis.failure_envelope import FailureEnvelope
-from plotting import SingleFigure, SingleLine, Axis
+from src.classical_laminate_theory.failure_analysis.failure_envelope import FailureEnvelope
+from my_plotting import SingleFigure, SingleLine, Axis
 
 
 def plot_lpf_failure_envelope(

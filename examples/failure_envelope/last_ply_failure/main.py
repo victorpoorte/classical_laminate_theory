@@ -8,14 +8,14 @@ def main(config: dict):
 
     config_class = CLTConfig(config)
 
-    layers = config_class.create_layers()
-
     # Create and plot envelope
-    for load in config_class.loading.loads:
-        analyser = config_class.settings.analysers[0]
-        envelope = FailureEnvelopeGenerator(analyser, load.x_axis, load.y_axis, angle_resolution=load.angle_resolution).compute_envelope(layers)
-        fig = plot_lpf_failure_envelope(envelope, x_label=load.x_axis, y_label=load.y_axis)
-        fig.show()
+    for layers in config_class.create_layers():
+        print(f"Laminate: {[lay.rotation for lay in layers]}")
+        for load in config_class.loading.loads:
+            analyser = config_class.settings.analysers[0]
+            envelope = FailureEnvelopeGenerator(analyser, load.x_axis, load.y_axis, angle_resolution=load.angle_resolution).compute_envelope(layers)
+            fig = plot_lpf_failure_envelope(envelope, x_label=load.x_axis, y_label=load.y_axis)
+            fig.show()
     
 
 if __name__ == "__main__":

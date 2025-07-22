@@ -12,31 +12,36 @@ settings:
     - "first_ply_failure"
   
 loading:
-  - name: "Nx-Ny Envelope"
-    x_axis: "Nx"
-    y_axis: "Ny"
-    angle_resolution: 1.0
+  name: "Nx-Ny Envelope"
+  x_axis: "Nx"
+  y_axis: "Ny"
+  angle_resolution: 1.0
 
 laminate:
-  angles: [0, 0, 45, -45, 90, 90]
-  symmetric: 2  # Times symmetry of laminate
-  degrees: True
-  layer_thickness: 0.125e-03
+  - angles: [0, 0, 45, -45, 90, 90]
+    symmetric: 2  # Times symmetry of laminate
+    degrees: True
+    layer_thickness: 0.125e-03
+
+  - angles: [45, -45, 90, 90, 0, 0]
+    symmetric: 2  # Times symmetry of laminate
+    degrees: True
+    layer_thickness: 0.125e-03
 
 material:
-  name: "MR60H Uni Carbon 36%RC"
-  E1: 168.0e+09             # Pa
-  E2: 7.93e+09               # Pa
-  v12: 0.38               # -
-  v23: 0.0179               # -
-  G12: 5.06e+09              # Pa
-  p12_negative: 0.3         # -
-  p12_positive: 0.3         # -
-  failure: 
-    - temperature: 0        # K
-      failure:
-        X_t: 2870.0e+06     # Pa
-        X_c: -1579.0e+06     # Pa
-        Y_t: 43.1e+06       # Pa
-        Y_c: -164.0e+06     # Pa
-        S: 56.8e+06         # Pa
+  - name: "MR60H Uni Carbon 36%RC"
+    E1: 168.0e+09             # Pa
+    E2: 7.93e+09               # Pa
+    v12: 0.38               # -
+    v23: 0.0179               # -
+    G12: 5.06e+09              # Pa
+    p12_negative: 0.3         # -
+    p12_positive: 0.3         # -
+    failure: 
+      - temperature: 0        # K
+        failure:
+          X_t: 2870.0e+06     # Pa
+          X_c: -1579.0e+06     # Pa
+          Y_t: 43.1e+06       # Pa
+          Y_c: -164.0e+06     # Pa
+          S: 56.8e+06         # Pa
