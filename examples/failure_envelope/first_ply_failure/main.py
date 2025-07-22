@@ -1,8 +1,7 @@
-from classical_laminate_theory.clt.failure_analysis.plot_failure_envelope import plot_fpf_failure_envelope
-from classical_laminate_theory.clt.failure_analysis.failure_envelope import FailureEnvelopeGenerator
-from classical_laminate_theory.clt.config.config import CLTConfig
-from classical_laminate_theory.clt.config.yaml_loader import load_config
-from classical_laminate_theory.clt.layer import Layer
+from src.classical_laminate_theory.failure_analysis.plot_failure_envelope import plot_fpf_failure_envelope
+from src.classical_laminate_theory.failure_analysis.failure_envelope import FailureEnvelopeGenerator
+from src.classical_laminate_theory.config_utils.config import CLTConfig
+from src.classical_laminate_theory.config_utils.yaml_loader import load_config
 
 
 def main(config: dict):
@@ -44,9 +43,10 @@ if __name__ == "__main__":
     else:
         yaml_files = sys.argv[1:]
 
-    yaml_file = yaml_files[0]
-    config = load_config(yaml_file)
-    main(config)
+    for yaml_file in yaml_files:
+        print(f"Running with: {yaml_file}")
+        config = load_config(yaml_file)
+        main(config)
 
 
 # End
