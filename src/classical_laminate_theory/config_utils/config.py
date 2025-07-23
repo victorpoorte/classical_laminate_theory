@@ -95,7 +95,8 @@ class MaterialConfig(Sweepable):
         super().__post_init__()
         
         self._materials = {
-            material[self.NAME]: self._extract_material(material)
+            material if isinstance(material, str) else material[self.NAME]:
+            self._extract_material(material)
             for material in self._config
         }
 
@@ -272,6 +273,12 @@ class Factory:
 class SettingsConfig:
     _config: dict
 
+    failure_criterion_factory: Factory = field(default_factory=FailureCriteriaFactory)
+    layering_strategy_factory: Factory = field(default_factory=LayeringStrategyFactory)
+    strain_computer_factory: Factory = field(default_factory=StrainComputerFactory)
+    failure_strategy_factory: Factory = field(default_factory=FailureStrategyInitialiserFactory)
+    material_degrader_factory: Factory = field(default_factory=MaterialDegraderFactory)
+
     FAILURE_CRITERION = "failure_criteria"
     LAYERING_STRATEGY = "layering_strategy"
     STRAIN_COMPUTER = "strain_computers"
@@ -279,15 +286,10 @@ class SettingsConfig:
     MATERIAL_DEGRADER = "material_degrader"
     CASES = "cases"
 
-    factory_map: dict[str, Factory] = field(default_factory=lambda: {
-        "failure_criteria": FailureCriteriaFactory(),
-        "layering_strategy": LayeringStrategyFactory(),
-        "strain_computers": StrainComputerFactory(),
-        "failure_strategies": FailureStrategyInitialiserFactory(),
-        "material_degrader": MaterialDegraderFactory(),
-    })
-
     def __post_init__(self):
+
+        self._create_factory_map()
+
         if self._config is None:
             return None
         
@@ -301,6 +303,17 @@ class SettingsConfig:
         self._unpack_material_degrader()
         self._unpack_failure_strategies()
         self._create_cartesian_analysers()
+
+    def _create_factory_map(self):
+        self.factory_map: dict[str, Factory] = {
+            self.FAILURE_CRITERION: self.failure_criterion_factory,
+            self.LAYERING_STRATEGY: self.layering_strategy_factory,
+            self.STRAIN_COMPUTER: self.strain_computer_factory,
+            self.FAILURE_STRATEGIES: self.failure_strategy_factory,
+            self.MATERIAL_DEGRADER: self.material_degrader_factory,
+        }
+
+        return self.factory_map
 
     def _unpack_item(self, items: str, factory: Factory):
         if items is None:
