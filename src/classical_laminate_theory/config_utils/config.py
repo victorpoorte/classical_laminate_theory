@@ -1,7 +1,7 @@
-from abc import abstractmethod
-from typing import Union
+
+from typing import Any, Union
 import numpy as np
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from ..material import Lamina, LaminaFailureStresses
 from ..failure_analysis.failure_strategy import FailureStrategyInitialiserFactory, FailureTypes
@@ -47,8 +47,6 @@ class Sweepable:
 
 
 
-
-
 @dataclass
 class CLTConfig:
     _config: dict
@@ -67,25 +65,22 @@ class CLTConfig:
     def _unpack_settings(self):
         self.settings = SettingsConfig(self._config.get(self.SETTINGS))
 
+        return self.settings
+
     def _unpack_laminate(self):
         self.laminate = LaminateConfig(self._config.get(self.LAMINATE))
+
+        return self.laminate
 
     def _unpack_material(self):
         self.material = MaterialConfig(self._config.get(self.MATERIAL))
 
+        return self.material
+
     def _unpack_loading(self):
         self.loading = LoadingConfig(self._config.get(self.LOADING))
 
-    def create_layers(self):
-        return [
-            self.settings.layering_strategy.create_complete_layers(
-                laminate_stack.angles,
-                laminate_stack.thickness,
-                self.material.default,
-                laminate_stack.degrees
-            )
-            for laminate_stack in self.laminate.all
-        ]
+        return self.loading
 
 
 @dataclass
@@ -94,17 +89,34 @@ class MaterialConfig(Sweepable):
 
     FAILURE = "failure"
     FAILURE_STRESSES = "failure_stresses"
+    NAME = "name"
 
     def __post_init__(self):
         super().__post_init__()
         
-        self._materials = [
-            self._extract_material(material) for material in self._config
-        ]
+        self._materials = {
+            material[self.NAME]: self._extract_material(material)
+            for material in self._config
+        }
 
     @property
     def values(self):
         return self._materials
+    
+    @property
+    def default(self) -> Lamina:
+        if len(self._materials) != 1:
+            raise ValueError("MaterialConfig has multiple materials, cannot pick default.")
+        return list(self._materials.values())[0]
+
+    def get_material(self, name: str) -> Lamina:
+        material = self._materials.get(name)
+        if material is None:
+            raise ValueError(
+                f"Material '{name}' not available in MaterialConfig\n"
+                + f"Available materials are: {", ".join(self._materials.keys())}"
+            )
+        return material
 
     def _extract_material(self, material: Union[None, str, dict]):
         if material is None:
@@ -124,23 +136,30 @@ class MaterialConfig(Sweepable):
                     loads["temperature"]: LaminaFailureStresses(**loads[self.FAILURE])
                     for loads in failure_loads
                 }
+        
         return Lamina(**(material | {self.FAILURE_STRESSES: failure_stresses}))
+
 
 
 @dataclass
 class LaminateStack:
+    material_names: list[str]
     angles: list[float]
+    layer_thickness: list[float]
     degrees: bool
-    thickness: float
+    layering_strategy: str
+
 
 @dataclass
 class LaminateConfig(Sweepable):
-    _config: Union[dict, list]
+    _config: Union[dict, list[dict]]
 
     ANGLES: str = "angles"
     SYMMETRIC: str = "symmetric"
     DEGREES: str = "degrees"
     LAYER_THICKNESS: str = "layer_thickness"
+    MATERIAL_NAME: str = "material_name"
+    LAYERING_STRATEGY: str = "layering_strategy"
 
     def __post_init__(self):
         super().__post_init__()
@@ -159,6 +178,22 @@ class LaminateConfig(Sweepable):
         return [self._build_single_laminate(self._config)]
 
     def _build_single_laminate(self, cfg: dict) -> LaminateStack:
+
+        # Make make symmetries if needed
+        angles = self._handle_angles(cfg)
+
+        # Extract materials and thicknesses, ensure convert to list if needed
+        no_layers = len(angles)       
+        names = self._to_list(cfg.get(self.MATERIAL_NAME), no_layers)
+        layer_thickness = self._to_list(cfg.get(self.LAYER_THICKNESS), no_layers)
+        
+        # Extract single values for laminate stack
+        degrees = cfg.get(self.DEGREES, True)
+        layering_strategy = cfg.get(self.LAYERING_STRATEGY)
+
+        return LaminateStack(names, angles, layer_thickness, degrees, layering_strategy)
+
+    def _handle_angles(self, cfg: dict) -> list[float]:
         angles = cfg.get(self.ANGLES)
 
         if angles is None:
@@ -168,13 +203,42 @@ class LaminateConfig(Sweepable):
             angles = _min_max_step_dict_to_array(angles)
 
         symmetric = cfg.get(self.SYMMETRIC, 0)
-        degrees = cfg.get(self.DEGREES, True)
-        thickness = cfg.get(self.LAYER_THICKNESS, None)
 
         if symmetric:
-            angles = angles + angles[::-1] * symmetric
+            for _ in range(symmetric):
+                angles = angles + angles[::-1]
+        return angles
+    
+    @staticmethod
+    def _to_list(value, length):
+        return value if isinstance(value, list) else [value] * length
+    
 
-        return LaminateStack(angles, degrees, thickness)
+@dataclass
+class LayersBuilder:
+    laminate: LaminateConfig
+    material: MaterialConfig
+
+    strategy_factory: LayeringStrategyFactory = LayeringStrategyFactory()
+
+    @property
+    def _strategies(self):
+        return [
+            self.strategy_factory.create(lam.layering_strategy)
+            for lam in self.laminate.values
+        ]
+
+    def build_layers(self):
+        return [
+            strategy.create_complete_layers(
+                laminate.angles,
+                laminate.layer_thickness,
+                [self.material.get_material(mat) for mat in laminate.material_names],
+                laminate.degrees 
+            )
+            for strategy, laminate in zip(self._strategies, self.laminate.values)
+        ]
+
 
 @dataclass
 class FailureEnvelopeConfig:
@@ -200,24 +264,28 @@ class LoadingConfig(Sweepable):
         return self.loads
 
 
+class Factory:
+    def create(self, item: str) -> Any: ...
+
+
 @dataclass
 class SettingsConfig:
     _config: dict
-
-    failure_criterion_strategy: FailureCriteriaFactory = FailureCriteriaFactory()
-    material_factory: MaterialFactory = MaterialFactory()
-    layering_factory: LayeringStrategyFactory = LayeringStrategyFactory()
-    strain_computer_factory: StrainComputerFactory = StrainComputerFactory()
-    material_degrader_factory: MaterialDegraderFactory = MaterialDegraderFactory()
-    failure_strategy_initialiser_factory: FailureStrategyInitialiserFactory = FailureStrategyInitialiserFactory()
 
     FAILURE_CRITERION = "failure_criteria"
     LAYERING_STRATEGY = "layering_strategy"
     STRAIN_COMPUTER = "strain_computers"
     FAILURE_STRATEGIES = "failure_strategies"
     MATERIAL_DEGRADER = "material_degrader"
-    RETURN_FAILURE_MODES = "return_failure_modes"
     CASES = "cases"
+
+    factory_map: dict[str, Factory] = field(default_factory=lambda: {
+        "failure_criteria": FailureCriteriaFactory(),
+        "layering_strategy": LayeringStrategyFactory(),
+        "strain_computers": StrainComputerFactory(),
+        "failure_strategies": FailureStrategyInitialiserFactory(),
+        "material_degrader": MaterialDegraderFactory(),
+    })
 
     def __post_init__(self):
         if self._config is None:
@@ -229,56 +297,43 @@ class SettingsConfig:
             return
         
         self._unpack_failure_criteria()
-        self._unpack_layering_strategy()
         self._unpack_strain_computers()
         self._unpack_material_degrader()
         self._unpack_failure_strategies()
         self._create_cartesian_analysers()
 
+    def _unpack_item(self, items: str, factory: Factory):
+        if items is None:
+            return None
+        
+        if isinstance(items, str):
+            items = [items]
+
+        return [factory.create(item) for item in items]
+
     def _unpack_failure_criteria(self):
-        criteria = self._config.get(self.FAILURE_CRITERION)
+        self.failure_criteria = self._unpack_item(
+            self._config.get(self.FAILURE_CRITERION),
+            self.factory_map[self.FAILURE_CRITERION]
+        )
 
-        if criteria is None:
-            self.failure_criteria = None
-            return self.failure_criteria
-        
-        if isinstance(criteria, str):
-            criteria = [criteria]
-
-        self.failure_criteria = [
-            self.failure_criterion_strategy.get_failure_criterion(criterion)
-            for criterion in criteria
-        ]
-        
         return self.failure_criteria
     
-    def _unpack_layering_strategy(self):
-        strategy = self._config.get(self.LAYERING_STRATEGY)
-
-        if strategy is None:
-            self.layering_strategy = None
-            return self.layering_strategy
-        
-        self.layering_strategy = self.layering_factory.get_layering_strategy(strategy)
-
-        return self.layering_strategy
-    
     def _unpack_strain_computers(self):
-        computers = self._config.get(self.STRAIN_COMPUTER)
-
-        if computers is None:
-            self.strain_computers = None
-            return self.strain_computers
-
-        if isinstance(computers, str):
-            computers = [computers]
-
-        self.strain_computers = [
-            self.strain_computer_factory.create_strain_computer(computer)
-            for computer in computers
-        ]
+        self.strain_computers = self._unpack_item(
+            self._config.get(self.STRAIN_COMPUTER),
+            self.factory_map[self.STRAIN_COMPUTER]
+        )
 
         return self.strain_computers
+
+    def _unpack_material_degrader(self):
+        self.material_degraders = self._unpack_item(
+            self._config.get(self.MATERIAL_DEGRADER),
+            self.factory_map[self.MATERIAL_DEGRADER]
+        )
+
+        return self.material_degraders
 
     def _unpack_failure_strategies(self):
         strategies = self._config.get(self.FAILURE_STRATEGIES)
@@ -286,29 +341,13 @@ class SettingsConfig:
         if isinstance(strategies, str):
             strategies = [strategies]
 
-        args = [
-            [] if strat == FailureTypes.FPF.value
-            else [self.material_degrader]
-            for strat in strategies
-        ]
-
+        degraders = self.material_degraders if self.material_degraders is not None else [None] * len(strategies)
         self.failure_strategies = [
-            self.failure_strategy_initialiser_factory.get_strategy(strat)(*arg)
-            for strat, arg in zip(strategies, args)
+            self.factory_map[self.FAILURE_STRATEGIES].create(strat)(degrader)
+            for strat, degrader in zip(strategies, degraders)
         ]
 
         return self.failure_strategies
-
-    def _unpack_material_degrader(self):
-        degrader = self._config.get(self.MATERIAL_DEGRADER)
-
-        if degrader is None:
-            self.material_degrader = None
-            return self.material_degrader
-        
-        self.material_degrader = self.material_degrader_factory.get_degrader(degrader)
-
-        return self.material_degrader
 
     def _create_cartesian_analysers(self):
         self.analysers = [
@@ -332,25 +371,22 @@ class SettingsConfig:
         return " - ".join(labels)
 
     def _create_explicit_analysers(self, case_dicts: list[dict]):
-        self.analysers = []
+        self.analysers = [
+            self._case_to_failure_analyser(case) for case in case_dicts
+        ]
 
-        for case in case_dicts:
-            criterion = self.failure_criterion_strategy.get_failure_criterion(case[self.FAILURE_CRITERION])
-            computer = self.strain_computer_factory.create_strain_computer(case[self.STRAIN_COMPUTER])
-            strategy_name = case[self.FAILURE_STRATEGIES]
-            self.layering_strategy = self.layering_factory.get_layering_strategy(case[self.LAYERING_STRATEGY])
+        return self.analysers
+    
+    def _case_to_failure_analyser(self, case: dict) -> FailureAnalyser:
 
-            degrader = None
-            if self.MATERIAL_DEGRADER in case:
-                degrader = self.material_degrader_factory.get_degrader(case[self.MATERIAL_DEGRADER])
-
-            if strategy_name == FailureTypes.FPF.value:
-                strategy = self.failure_strategy_initialiser_factory.get_strategy(strategy_name)()
-            else:
-                strategy = self.failure_strategy_initialiser_factory.get_strategy(strategy_name)(degrader)
-
-            self.analysers.append(
-                FailureAnalyser(computer, criterion, strategy)
-            )
+        material_degrader = (
+            None if self.MATERIAL_DEGRADER not in case
+            else self.factory_map[self.MATERIAL_DEGRADER].create(case[self.MATERIAL_DEGRADER])
+        )
+        strain_computer = self.factory_map[self.STRAIN_COMPUTER].create(case[self.STRAIN_COMPUTER])
+        failure_criterion = self.factory_map[self.FAILURE_CRITERION].create(case[self.FAILURE_CRITERION])
+        failure_strategy = self.factory_map[self.FAILURE_STRATEGIES].create(case[self.FAILURE_STRATEGIES])(material_degrader)
+        
+        return FailureAnalyser(strain_computer, failure_criterion, failure_strategy)
 
 # End

@@ -99,6 +99,9 @@ class FailureStrategy:
 
 class FirstPlyFailureStrategy(FailureStrategy):
 
+    def __init__(self, material_degrader: MaterialDegrader = None) -> None:
+        self.material_degrader = material_degrader
+
     def __str__(self):
         return "First Ply Failure"
     
@@ -114,11 +117,11 @@ class FirstPlyFailureStrategy(FailureStrategy):
 
 class LastPlyFailureStrategy(FailureStrategy):
 
-    def __str__(self):
-        return "Last Ply Failure"
-
     def __init__(self, material_degrader: MaterialDegrader) -> None:
         self.material_degrader = material_degrader
+
+    def __str__(self):
+        return "Last Ply Failure"
     
     def run(self, layers: list[Layer], load: Load, analyser: FailureAnalyser, max_iterations: int = 40, convergence_margin: float = 0.01) -> FailureResult:
         loads: list[Load] = list()
@@ -249,7 +252,7 @@ class FailureStrategyInitialiserFactory:
     def available(self):
         return ", ".join(self.strategies.keys())
 
-    def get_strategy(self, strategy: str) -> FailureStrategy:
+    def create(self, strategy: str) -> FailureStrategy:
         strat = self.strategies.get(strategy)
 
         if strat is not None:

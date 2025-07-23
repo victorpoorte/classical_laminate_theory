@@ -1,11 +1,9 @@
 settings:
   cases:
     - failure_criteria: Puck
-      layering_strategy: "Laminated"
       strain_computers: "classical_laminate"
       failure_strategies: "last_ply_failure"
       material_degrader: "Tsai-Wu"
-      layering_strategy: "Laminated"
   
 loading:
   - name: "Nx-Ny Envelope"
@@ -23,6 +21,8 @@ laminate:
   symmetric: 2  # Times symmetry of laminate
   degrees: True
   layer_thickness: 0.125e-03
+  material_name: "MR60H Uni Carbon 36%RC"
+  layering_strategy: "Laminated"
 
 material:
   name: "MR60H Uni Carbon 36%RC"

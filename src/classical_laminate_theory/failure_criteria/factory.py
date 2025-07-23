@@ -14,7 +14,7 @@ class FailureCriteriaFactory:
     def available(self):
         return ", ".join(self._failure_criteria.keys())
 
-    def get_failure_criterion(self, criterion: str) -> FailureCriterion:
+    def create(self, criterion: str) -> FailureCriterion:
         crit = self._failure_criteria.get(criterion)
         if crit is None:
             raise ValueError(

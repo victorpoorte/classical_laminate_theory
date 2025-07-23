@@ -13,6 +13,15 @@ class Lamina(Protocol):
         ...
 
 class LayeringStrategy(Protocol):
+     
+     @staticmethod
+     def _to_list(value, number_of_layers: int) -> list:
+         if not isinstance(value, list):
+             return [value] * number_of_layers
+         if len(value) != number_of_layers:
+             raise ValueError("List lengths do not match")
+         return value
+
      def create_complete_layers(self, rotation: float | list[float], layer_thickness: float, material: Lamina, degrees: bool):
         ...
 
@@ -21,9 +30,14 @@ class LaminateLayerStrategy(LayeringStrategy):
         return layers
     
     def create_complete_layers(self, angles, layer_thickness, material, degrees) -> list[Layer]:
+        # Convert single values to list
+        number_of_layers = len(angles)
+        layer_thicknesses = self._to_list(layer_thickness, number_of_layers)
+        materials = self._to_list(material, number_of_layers)
+
         return [
-            Layer(material, layer_thickness, angle, degrees)
-            for angle in angles
+            Layer(material, thickness, angle, degrees)
+            for angle, thickness, material in zip(angles, layer_thicknesses, materials)
         ]
 
 
@@ -96,7 +110,7 @@ class LayeringStrategyFactory():
     def available(self):
         return " ,".join(self._strategies.keys())
 
-    def get_layering_strategy(self, strategy: str) -> LayeringStrategy:
+    def create(self, strategy: str) -> LayeringStrategy:
         strat = self._strategies.get(strategy)
         if strat is None:
             raise ValueError(

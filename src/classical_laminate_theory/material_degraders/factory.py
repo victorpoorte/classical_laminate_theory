@@ -10,7 +10,7 @@ class MaterialDegraderFactory:
     def available(self):
         return ", ".join(self.degraders.keys())
 
-    def get_degrader(self, degrader: str) -> MaterialDegrader:
+    def create(self, degrader: str) -> MaterialDegrader:
         deg = self.degraders.get(degrader)
 
         if deg is not None:
