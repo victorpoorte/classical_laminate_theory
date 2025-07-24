@@ -3,8 +3,10 @@ from typing import Any, Union
 import numpy as np
 from dataclasses import dataclass, field
 
+from ..layer import LayersBuilder
+from ..laminate import LaminateStack
 from ..material import Lamina, LaminaFailureStresses
-from ..failure_analysis.failure_strategy import FailureStrategyInitialiserFactory, FailureTypes
+from ..failure_analysis.failure_strategy import FailureStrategyInitialiserFactory
 from ..failure_criteria.factory import FailureCriteriaFactory
 from ..material import MaterialFactory
 from ..material_degraders.factory import MaterialDegraderFactory
@@ -12,6 +14,9 @@ from ..failure_analysis.failure_analyser import FailureAnalyser
 from ..strain_computers import StrainComputerFactory
 from ..layering_strategies import LayeringStrategyFactory
 
+
+class Factory:
+    def create(self, item: str) -> Any: ...
 
 
 def _min_max_step_dict_to_array(values: dict) -> np.ndarray:
@@ -46,7 +51,6 @@ class Sweepable:
         return self.values
 
 
-
 @dataclass
 class CLTConfig:
     _config: dict
@@ -62,8 +66,6 @@ class CLTConfig:
         self._unpack_loading()
         self._unpack_settings()
         self._create_builder()
-
-
 
     def _unpack_settings(self):
         self.settings = SettingsConfig(self._config.get(self.SETTINGS))
@@ -86,7 +88,11 @@ class CLTConfig:
         return self.loading
     
     def _create_builder(self):
-        self.layers_builder = LayersBuilder(self.laminate, self.material, self.settings.layering_strategy_factory)
+        self.layers_builder = LayersBuilder(
+            self.laminate.values, 
+            self.material,
+            self.settings.layering_strategy_factory
+        )
 
         return self.layers_builder
 
@@ -118,7 +124,7 @@ class MaterialConfig(Sweepable):
             raise ValueError("MaterialConfig has multiple materials, cannot pick default.")
         return list(self._materials.values())[0]
 
-    def get_material(self, name: str) -> Lamina:
+    def get(self, name: str) -> Lamina:
         material = self._materials.get(name)
         if material is None:
             raise ValueError(
@@ -149,16 +155,6 @@ class MaterialConfig(Sweepable):
         return Lamina(**(material | {self.FAILURE_STRESSES: failure_stresses}))
 
 
-
-@dataclass
-class LaminateStack:
-    material_names: list[str]
-    angles: list[float]
-    layer_thickness: list[float]
-    degrees: bool
-    layering_strategy: str
-
-
 @dataclass
 class LaminateConfig(Sweepable):
     _config: Union[dict, list[dict]]
@@ -166,8 +162,8 @@ class LaminateConfig(Sweepable):
     ANGLES: str = "angles"
     SYMMETRIC: str = "symmetric"
     DEGREES: str = "degrees"
-    LAYER_THICKNESS: str = "layer_thickness"
-    MATERIAL_NAME: str = "material_name"
+    LAYER_THICKNESS: str = "layer_thicknesses"
+    MATERIAL_NAME: str = "material_names"
     LAYERING_STRATEGY: str = "layering_strategy"
 
     def __post_init__(self):
@@ -178,74 +174,92 @@ class LaminateConfig(Sweepable):
     def values(self) -> list[LaminateStack]:
         return self._laminates
 
+    @property
+    def stack_builders(self) -> dict[str, callable]:
+        return {
+            "sweep": self._build_sweep_stacks,
+            "list": self._build_list_of_orientations_stacks,
+            "single": self._build_simple_orientations_stack,
+        }
+
     def _build_laminates(self) -> list[LaminateStack]:
-        # If _config is a list of full laminate dicts
-        if isinstance(self._config, list) and all(isinstance(c, dict) for c in self._config):
-            return [self._build_single_laminate(cfg) for cfg in self._config]
 
-        # Else assume it's a single laminate definition dict
-        return [self._build_single_laminate(self._config)]
+        all_stacks = list()
+        for laminate in self._config:
 
-    def _build_single_laminate(self, cfg: dict) -> LaminateStack:
-
-        # Make make symmetries if needed
-        angles = self._handle_angles(cfg)
-
-        # Extract materials and thicknesses, ensure convert to list if needed
-        no_layers = len(angles)       
-        names = self._to_list(cfg.get(self.MATERIAL_NAME), no_layers)
-        layer_thickness = self._to_list(cfg.get(self.LAYER_THICKNESS), no_layers)
+            laminate = laminate.copy()
+            angles = laminate.pop(self.ANGLES)
+            symmetric = laminate.pop(self.SYMMETRIC)
+            mode = self._determine_lamination_mode(angles)
+            stacks = self.stack_builders[mode](laminate, angles, symmetric)
+            all_stacks.extend(LaminateStack(**stack) for stack in stacks)
         
-        # Extract single values for laminate stack
-        degrees = cfg.get(self.DEGREES, True)
-        layering_strategy = cfg.get(self.LAYERING_STRATEGY)
+        return all_stacks
 
-        return LaminateStack(names, angles, layer_thickness, degrees, layering_strategy)
+    def _build_simple_orientations_stack(self, laminate, angles, symmetric):
+        angles = self._handle_symmetries(angles, symmetric)
+        laminate = self._normalise_laminate_metadata(laminate, angles)
+        stacks = [{**laminate, self.ANGLES: angles}]
+        return stacks
 
-    def _handle_angles(self, cfg: dict) -> list[float]:
-        angles = cfg.get(self.ANGLES)
+    def _build_list_of_orientations_stacks(self, laminate, angles, symmetric):
+        stacks = list()
+        for angle in angles:
+            angle = self._handle_symmetries(angle, symmetric)
+            laminate = self._normalise_laminate_metadata(laminate.copy(), angle)
+            stacks.append({**laminate, self.ANGLES: angle})
+        return stacks
 
-        if angles is None:
-            raise ValueError("Missing 'angles' in laminate config.")
+    def _build_sweep_stacks(self, laminate, angles, _):
+        return [
+            {**self._normalise_laminate_metadata(laminate, [angle]), self.ANGLES: [angle]}
+            for angle in _min_max_step_dict_to_array(angles)
+        ]
+    
+    def _normalise_laminate_metadata(self, laminate: dict, angles: list[float]) -> dict:
+        number_of_layers = len(angles)
 
-        if isinstance(angles, dict):
-            angles = _min_max_step_dict_to_array(angles)
+        for value in [self.MATERIAL_NAME, self.LAYER_THICKNESS]:
+            laminate[value] = self._to_list(laminate[value], number_of_layers)
 
-        symmetric = cfg.get(self.SYMMETRIC, 0)
 
-        if symmetric:
-            for _ in range(symmetric):
-                angles = angles + angles[::-1]
+        return laminate
+    
+    def _handle_symmetries(self, angles, symmetric):
+        if symmetric is None:
+            return angles
+        
+        for _ in range(symmetric):
+            angles += angles[::-1]
+        
         return angles
+
+    def _are_simple_orientations(self, angles):
+        return isinstance(angles, list) and (isinstance(angles[0], int) or isinstance(angles[0], float))
+
+    def _is_list_of_orientations(self, angles):
+        return isinstance(angles[0], list) and (isinstance(angles[0][0], float) or isinstance(angles[0][0], int))
+
+    def _is_sweep_laminate(self, angles):
+        return isinstance(angles, dict)
     
     @staticmethod
     def _to_list(value, length):
-        return value if isinstance(value, list) else [value] * length
-    
+        if isinstance(value, list):
+            if len(value) != length:
+                raise ValueError(f"Expected list of length {length}, got {len(value)}")
+            return value
+        return [value] * length    
 
-@dataclass
-class LayersBuilder:
-    laminate: LaminateConfig
-    material: MaterialConfig
-    strategy_factory: LayeringStrategyFactory
-
-    @property
-    def _strategies(self):
-        return [
-            self.strategy_factory.create(lam.layering_strategy)
-            for lam in self.laminate.values
-        ]
-
-    def build(self):
-        return [
-            strategy.create_complete_layers(
-                laminate.angles,
-                laminate.layer_thickness,
-                [self.material.get_material(mat) for mat in laminate.material_names],
-                laminate.degrees 
-            )
-            for strategy, laminate in zip(self._strategies, self.laminate.values)
-        ]
+    def _determine_lamination_mode(self, angles: list) -> str:
+        if self._is_sweep_laminate(angles):
+            return "sweep"
+        if self._is_list_of_orientations(angles):
+            return "list"
+        if self._are_simple_orientations(angles):
+            return "single"
+        
+        raise ValueError("Unsupported laminate definition...")
 
 
 @dataclass
@@ -271,9 +285,6 @@ class LoadingConfig(Sweepable):
 
         return self.loads
 
-
-class Factory:
-    def create(self, item: str) -> Any: ...
 
 
 @dataclass

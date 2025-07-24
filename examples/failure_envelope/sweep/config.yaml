@@ -17,7 +17,10 @@ loading:
   #   angle_resolution: 1.0
 
 laminate:
-  angles: [0, 0, 45, -45, 90, 90]
+  angles:
+    min: 0
+    max: 90
+    step: 45
   symmetric: 2  # Times symmetry of laminate
   degrees: True
   layer_thicknesses: 0.125e-03

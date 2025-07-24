@@ -1,11 +1,31 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-
-import numpy as np
+from typing import Protocol
 
 from .laminate_layer import LaminateLayer
 from .material import Lamina
+from .laminate import LaminateStack
+
+
+
+# class LaminateStack(Protocol):
+#     angles: list[float]
+#     layer_thicknesses: list[float]
+#     material_names: list[str]
+#     degrees: bool
+
+
+class MaterialInitialiser(Protocol):
+    def get(self, name: str) -> Lamina: ...
+
+
+class LayeringStrategy(Protocol):
+    def create_complete_layers(self, angles: list[float], layer_thicknesses: list[float], materials: list[Lamina], degrees: bool) -> list[Layer]: ...
+
+
+class LayeringStrategyFactory(Protocol):
+    def create(self, name: str) -> LayeringStrategy: ...
 
 
 @dataclass
@@ -15,36 +35,34 @@ class Layer:
     rotation: float
     degrees: bool
 
+
 def layer_to_laminate_layer(layer: Layer) -> LaminateLayer:
     return LaminateLayer(**layer.__dict__)
 
 
-def create_complete_layers(
-    rotations: list[float],
-    thicknesses: float | list[float],
-    materials: Lamina | list[Lamina],
-    degrees: bool | list[bool],
-) -> list[Layer]:
-    number_of_orientations = len(rotations)
-    thicknesses = _check_list(thicknesses, number_of_orientations)
-    materials = _check_list(materials, number_of_orientations)
-    degrees = _check_list(degrees, number_of_orientations)
-    return [
-        Layer(material, thickness, orientation, degree)
-        for orientation, thickness, material, degree in zip(
-            rotations, thicknesses, materials, degrees
-        )
-    ]
+@dataclass
+class LayersBuilder:
+    laminate_stacks: list[LaminateStack]
+    material: MaterialInitialiser
+    strategy_factory: LayeringStrategyFactory
 
+    @property
+    def _strategies(self):
+        return [
+            self.strategy_factory.create(lam.layering_strategy)
+            for lam in self.laminate_stacks
+        ]
 
-def _check_list(
-    my_list: list | Lamina | float | bool, number_of_orientations: int
-) -> list[float] | list[Lamina] | list[bool]:
-    if isinstance(my_list, list) or isinstance(my_list, np.ndarray):
-        if len(my_list) != number_of_orientations:
-            raise ValueError("Length of lists do not match...")
-        return my_list
-    return [my_list for _ in range(number_of_orientations)]
+    def build(self):
+        return [
+            strategy.create_complete_layers(
+                laminate.angles,
+                laminate.layer_thicknesses,
+                [self.material.get(mat) for mat in laminate.material_names],
+                laminate.degrees 
+            )
+            for strategy, laminate in zip(self._strategies, self.laminate_stacks)
+        ]
 
 
 def main():

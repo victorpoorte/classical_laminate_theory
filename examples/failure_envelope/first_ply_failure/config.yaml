@@ -17,19 +17,14 @@ loading:
   angle_resolution: 1.0
 
 laminate:
-  - angles: [0, 0, 45, -45, 90, 90]
-    symmetric: 2  # Times symmetry of laminate
-    degrees: True
-    layer_thickness: 0.125e-03
-    layering_strategy: "Laminated"
-    material_name: "MR60H Uni Carbon 36%RC"
-
-  - angles: [45, -45, 90, 90, 0, 0]
-    symmetric: 2  # Times symmetry of laminate
-    degrees: True
-    layer_thickness: 0.125e-03
-    layering_strategy: "Laminated"
-    material_name: "MR60H Uni Carbon 36%RC"
+  angles:
+    - [0, 0, 45, -45, 90, 90]
+    - [45, -45, 90, 90, 0, 0]
+  symmetric: 2  # Times symmetry of laminate
+  degrees: True
+  layer_thicknesses: 0.125e-03
+  layering_strategy: "Laminated"
+  material_names: "MR60H Uni Carbon 36%RC"
 
 material:
   - name: "MR60H Uni Carbon 36%RC"

@@ -14,26 +14,15 @@ class Lamina(Protocol):
 
 class LayeringStrategy(Protocol):
      
-     @staticmethod
-     def _to_list(value, number_of_layers: int) -> list:
-         if not isinstance(value, list):
-             return [value] * number_of_layers
-         if len(value) != number_of_layers:
-             raise ValueError("List lengths do not match")
-         return value
 
-     def create_complete_layers(self, rotation: float | list[float], layer_thickness: float, material: Lamina, degrees: bool):
+     def create_complete_layers(self, angles: list[float], layer_thicknesses: list[float], materials: list[Lamina], degrees: bool):
         ...
 
 class LaminateLayerStrategy(LayeringStrategy):
     def create_layers(self, layers: list[Layer]) -> list[Layer]:
         return layers
     
-    def create_complete_layers(self, angles, layer_thickness, material, degrees) -> list[Layer]:
-        # Convert single values to list
-        number_of_layers = len(angles)
-        layer_thicknesses = self._to_list(layer_thickness, number_of_layers)
-        materials = self._to_list(material, number_of_layers)
+    def create_complete_layers(self, angles: list[float], layer_thicknesses: list[float], materials: list[Lamina], degrees: bool) -> list[Layer]:
 
         return [
             Layer(material, thickness, angle, degrees)
