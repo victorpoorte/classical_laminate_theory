@@ -61,6 +61,9 @@ class CLTConfig:
         self._unpack_laminate()
         self._unpack_loading()
         self._unpack_settings()
+        self._create_builder()
+
+
 
     def _unpack_settings(self):
         self.settings = SettingsConfig(self._config.get(self.SETTINGS))
@@ -81,6 +84,11 @@ class CLTConfig:
         self.loading = LoadingConfig(self._config.get(self.LOADING))
 
         return self.loading
+    
+    def _create_builder(self):
+        self.layers_builder = LayersBuilder(self.laminate, self.material, self.settings.layering_strategy_factory)
+
+        return self.layers_builder
 
 
 @dataclass
@@ -219,8 +227,7 @@ class LaminateConfig(Sweepable):
 class LayersBuilder:
     laminate: LaminateConfig
     material: MaterialConfig
-
-    strategy_factory: LayeringStrategyFactory = LayeringStrategyFactory()
+    strategy_factory: LayeringStrategyFactory
 
     @property
     def _strategies(self):
@@ -229,7 +236,7 @@ class LayersBuilder:
             for lam in self.laminate.values
         ]
 
-    def build_layers(self):
+    def build(self):
         return [
             strategy.create_complete_layers(
                 laminate.angles,

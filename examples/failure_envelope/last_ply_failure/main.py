@@ -7,9 +7,8 @@ from src.classical_laminate_theory.config_utils.yaml_loader import load_config
 def main(config: dict):
 
     clt_config = CLTConfig(config)
-    layers_builder = LayersBuilder(clt_config.laminate, clt_config.material)
 
-    for layers in layers_builder.build_layers():
+    for layers in clt_config.layers_builder.build():
         print(f"Laminate: {[lay.rotation for lay in layers]}")
         for load in clt_config.loading.loads:
             analyser = clt_config.settings.analysers[0]

@@ -1,18 +1,17 @@
 from src.classical_laminate_theory.failure_analysis.plot_failure_envelope import plot_fpf_failure_envelope
 from src.classical_laminate_theory.failure_analysis.failure_envelope import FailureEnvelopeGenerator
-from src.classical_laminate_theory.config_utils.config import CLTConfig, LayersBuilder
+from src.classical_laminate_theory.config_utils.config import CLTConfig
 from src.classical_laminate_theory.config_utils.yaml_loader import load_config
 
 
 def main(config: dict):
 
     clt_config = CLTConfig(config)
-    layers_builder = LayersBuilder(clt_config.laminate, clt_config.material)
 
     labels = [criterion.name for criterion in clt_config.settings.failure_criteria]
 
 
-    for layers in layers_builder.build_layers():
+    for layers in clt_config.layers_builder.build():
         print(f"Laminate: {[lay.rotation for lay in layers]}")
         # Create and plot envelope
         for load in clt_config.loading.loads:
