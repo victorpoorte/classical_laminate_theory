@@ -189,7 +189,7 @@ class LaminateConfig(Sweepable):
 
             laminate = laminate.copy()
             angles = laminate.pop(self.ANGLES)
-            symmetric = laminate.pop(self.SYMMETRIC)
+            symmetric = laminate.pop(self.SYMMETRIC, 0)
             mode = self._determine_lamination_mode(angles)
             stacks = self.stack_builders[mode](laminate, angles, symmetric)
             all_stacks.extend(LaminateStack(**stack) for stack in stacks)
@@ -226,9 +226,6 @@ class LaminateConfig(Sweepable):
         return laminate
     
     def _handle_symmetries(self, angles, symmetric):
-        if symmetric is None:
-            return angles
-        
         for _ in range(symmetric):
             angles += angles[::-1]
         
