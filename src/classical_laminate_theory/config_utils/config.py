@@ -140,7 +140,7 @@ class MaterialConfig(Sweepable):
         if isinstance(material, str):
             return MaterialFactory().create_material(material)
 
-        material: dict
+        material: dict = material.copy()
         failure_stresses = None
         if self.FAILURE in material:
             failure_loads = material.pop(self.FAILURE)
