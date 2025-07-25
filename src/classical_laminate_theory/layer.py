@@ -8,14 +8,6 @@ from .material import Lamina
 from .laminate import LaminateStack
 
 
-
-# class LaminateStack(Protocol):
-#     angles: list[float]
-#     layer_thicknesses: list[float]
-#     material_names: list[str]
-#     degrees: bool
-
-
 class MaterialInitialiser(Protocol):
     def get(self, name: str) -> Lamina: ...
 
@@ -54,7 +46,7 @@ class LayersBuilder:
         ]
 
     def build(self):
-        return [
+        layers = [
             strategy.create_complete_layers(
                 laminate.angles,
                 laminate.layer_thicknesses,
@@ -63,6 +55,9 @@ class LayersBuilder:
             )
             for strategy, laminate in zip(self._strategies, self.laminate_stacks)
         ]
+        if len(layers) == 1:
+            return layers[0]
+        return layers
 
 
 def main():

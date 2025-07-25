@@ -258,6 +258,29 @@ class LaminateConfig(Sweepable):
         
         raise ValueError("Unsupported laminate definition...")
 
+    def get_sweep_angles(self):
+        return [lam.angles for lam in self.all]
+    
+    def get_sweep_thicknesses(self):
+        thicknesses = self.default.layer_thicknesses
+        if len(thicknesses) != 1:
+            raise ValueError("Not suported thickness")
+        thickness = thicknesses[0]
+        if isinstance(thickness, float) or isinstance(thickness, int):
+            return thickness
+        return _min_max_step_dict_to_array(thickness)
+    
+    def get_sweep_material_name(self):
+        names = self.default.material_names
+        if len(names) != 1:
+            raise ValueError("get_material_name invalid method for defined materials names")
+        return names[0]
+    
+    def get_sweep_layering_strategy(self):
+        return self.default.layering_strategy
+    
+    def get_sweep_degrees(self):
+        return self.default.degrees
 
 @dataclass
 class FailureEnvelopeConfig:
