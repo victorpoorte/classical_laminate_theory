@@ -33,13 +33,13 @@ class LaminateStack:
     degrees: bool
     layering_strategy: str
 
-    def __post_init__(self):
-        self._validate_list_lengths()
+    # def __post_init__(self):
+    #     self._validate_list_lengths()
 
-    def _validate_list_lengths(self):
-        # All lists must already be correct; raise if not
-        if not (len(self.material_names) == len(self.angles) == len(self.layer_thicknesses)):
-            raise ValueError("Mismatch in laminate stack definition lengths.")
+    # def _validate_list_lengths(self):
+    #     # All lists must already be correct; raise if not
+    #     if not (len(self.material_names) == len(self.angles) == len(self.layer_thicknesses)):
+    #         raise ValueError("Mismatch in laminate stack definition lengths.")
 
 
 @dataclass

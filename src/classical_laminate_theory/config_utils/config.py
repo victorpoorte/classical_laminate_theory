@@ -6,17 +6,18 @@ from dataclasses import dataclass, field
 from ..layer import LayersBuilder
 from ..laminate import LaminateStack
 from ..material import Lamina, LaminaFailureStresses
+from ..material_degraders.degrader_protocol import MaterialDegrader
 from ..failure_analysis.failure_strategy import FailureStrategyInitialiserFactory
 from ..failure_criteria.factory import FailureCriteriaFactory
 from ..material import MaterialFactory
 from ..material_degraders.factory import MaterialDegraderFactory
 from ..failure_analysis.failure_analyser import FailureAnalyser
 from ..strain_computers import StrainComputerFactory
-from ..layering_strategies import LayeringStrategyFactory
+from ..layering_strategies import LayeringStrategyFactory, LayeringStrategy
 
 
 class Factory:
-    def create(self, item: str) -> Any: ...
+    def create(self, item: str) -> LayeringStrategy: ...
 
 
 def _min_max_step_dict_to_array(values: dict) -> np.ndarray:
@@ -49,52 +50,6 @@ class Sweepable:
     @property
     def all(self):
         return self.values
-
-
-@dataclass
-class CLTConfig:
-    _config: dict
-
-    LOADING = "loading"
-    LAMINATE = "laminate"
-    MATERIAL = "material"
-    SETTINGS = "settings"
-
-    def __post_init__(self):
-        self._unpack_material()
-        self._unpack_laminate()
-        self._unpack_loading()
-        self._unpack_settings()
-        self._create_builder()
-
-    def _unpack_settings(self):
-        self.settings = SettingsConfig(self._config.get(self.SETTINGS))
-
-        return self.settings
-
-    def _unpack_laminate(self):
-        self.laminate = LaminateConfig(self._config.get(self.LAMINATE))
-
-        return self.laminate
-
-    def _unpack_material(self):
-        self.material = MaterialConfig(self._config.get(self.MATERIAL))
-
-        return self.material
-
-    def _unpack_loading(self):
-        self.loading = LoadingConfig(self._config.get(self.LOADING))
-
-        return self.loading
-    
-    def _create_builder(self):
-        self.layers_builder = LayersBuilder(
-            self.laminate.values, 
-            self.material,
-            self.settings.layering_strategy_factory
-        )
-
-        return self.layers_builder
 
 
 @dataclass
@@ -153,6 +108,73 @@ class MaterialConfig(Sweepable):
                 }
         
         return Lamina(**(material | {self.FAILURE_STRESSES: failure_stresses}))
+    
+    def degrade_materials_transversly(self, materials: list[str], material_degrader: MaterialDegrader) -> dict[str, Lamina]:
+        if not isinstance(materials, list): materials = [materials]
+        for material in materials:
+            lamina = self._materials[material]
+            degraded_material = material_degrader.degrade_transverse(lamina)
+            self._materials[material] = degraded_material        
+
+        return self._materials
+
+
+@dataclass
+class CLTConfig:
+    _config: dict
+
+    LOADING = "loading"
+    LAMINATE = "laminate"
+    MATERIAL = "material"
+    SETTINGS = "settings"
+
+    def __post_init__(self):
+        self._unpack_material()
+        self._unpack_laminate()
+        self._unpack_loading()
+        self._unpack_settings()
+
+    def _unpack_settings(self):
+        self.settings = SettingsConfig(self._config.get(self.SETTINGS))
+
+        return self.settings
+
+    def _unpack_laminate(self):
+        self.laminate = LaminateConfig(self._config.get(self.LAMINATE))
+
+        return self.laminate
+
+    def _unpack_material(self):
+        self.material = MaterialConfig(self._config.get(self.MATERIAL))
+
+        return self.material
+
+    def _unpack_loading(self):
+        self.loading = LoadingConfig(self._config.get(self.LOADING))
+
+        return self.loading
+    
+    @property
+    def layers_builder(self):
+        return LayersBuilder(
+            self.laminate.values, 
+            self.material,
+            self.settings.layering_strategy_factory
+        )
+    
+    def degrade_materials_transverse(self, materials: list[str], material_degrader: MaterialDegrader) -> MaterialConfig:
+        self.material.degrade_materials_transversly(materials, material_degrader)
+        self.layers_builder.material = self.material
+
+        return self.material
+
+    def build_layers_from_params(self, anlges: list[float], thicknesses: list[float], degrees: bool = True):
+        materials = [self.material.default for _ in anlges]
+        strategy_name = self.laminate.get_sweep_layering_strategy()
+        strategy = self.settings.layering_strategy_factory.create(strategy_name)
+        return strategy.create_complete_layers(
+            anlges, thicknesses, materials, degrees
+        )
 
 
 @dataclass
@@ -180,6 +202,7 @@ class LaminateConfig(Sweepable):
             "sweep": self._build_sweep_stacks,
             "list": self._build_list_of_orientations_stacks,
             "single": self._build_simple_orientations_stack,
+            "undefined": self._build_undefined_stack,
         }
 
     def _build_laminates(self) -> list[LaminateStack]:
@@ -188,7 +211,7 @@ class LaminateConfig(Sweepable):
         for laminate in self._config:
 
             laminate = laminate.copy()
-            angles = laminate.pop(self.ANGLES)
+            angles = laminate.pop(self.ANGLES, None)
             symmetric = laminate.pop(self.SYMMETRIC, 0)
             mode = self._determine_lamination_mode(angles)
             stacks = self.stack_builders[mode](laminate, angles, symmetric)
@@ -215,6 +238,10 @@ class LaminateConfig(Sweepable):
             {**self._normalise_laminate_metadata(laminate, [angle]), self.ANGLES: [angle]}
             for angle in _min_max_step_dict_to_array(angles)
         ]
+    
+    def _build_undefined_stack(self, laminate, angles, symmetric):
+        return [{**laminate, self.ANGLES: None, self.LAYER_THICKNESS: None}]
+
     
     def _normalise_laminate_metadata(self, laminate: dict, angles: list[float]) -> dict:
         number_of_layers = len(angles)
@@ -249,6 +276,8 @@ class LaminateConfig(Sweepable):
         return [value] * length    
 
     def _determine_lamination_mode(self, angles: list) -> str:
+        if angles is None:
+            return "undefined"
         if self._is_sweep_laminate(angles):
             return "sweep"
         if self._is_list_of_orientations(angles):
@@ -304,7 +333,6 @@ class LoadingConfig(Sweepable):
         ]
 
         return self.loads
-
 
 
 @dataclass
