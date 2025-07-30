@@ -241,8 +241,7 @@ class LaminateConfig(Sweepable):
     
     def _build_undefined_stack(self, laminate, angles, symmetric):
         return [{**laminate, self.ANGLES: None, self.LAYER_THICKNESS: None}]
-
-    
+  
     def _normalise_laminate_metadata(self, laminate: dict, angles: list[float]) -> dict:
         number_of_layers = len(angles)
 
@@ -310,6 +309,13 @@ class LaminateConfig(Sweepable):
     
     def get_sweep_degrees(self):
         return self.default.degrees
+
+    def degrees(self):
+        degrees = {laminate.degrees for laminate in self._laminates}
+        if len(degrees) > 1:
+            raise ValueError("Inconsistent angle units: laminates mix degrees and radians.")
+        return degrees.pop()
+
 
 @dataclass
 class FailureEnvelopeConfig:
